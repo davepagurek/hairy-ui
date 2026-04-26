@@ -5,6 +5,18 @@ let shapes
 async function setup() {
   createCanvas(windowWidth, windowHeight, WEBGL)
   setAttributes({ antialias: true })
+  p5.instance._renderer.elt.style.display = 'block'
+  p5.instance._renderer.elt.style.position = 'fixed'
+  p5.instance._renderer.elt.style.top = '0'
+  p5.instance._renderer.elt.style.right = '0'
+  p5.instance._renderer.elt.style.bottom = '0'
+  p5.instance._renderer.elt.style.left = '0'
+  p5.instance._renderer.elt.style.zIndex = '999'
+  p5.instance._renderer.elt.style.pointerEvents = 'none'
+  p5.instance._renderer.elt.style.marginTop = '0'
+  p5.instance._renderer.elt.style.marginRight = '0'
+  p5.instance._renderer.elt.style.marginBottom = '0'
+  p5.instance._renderer.elt.style.marginLeft = '0'
   hairShader = buildColorShader(drawHairs)
   hairs = buildGeometry(() => {
     rotate(PI/2)
@@ -93,9 +105,12 @@ function drawHairs() {
   const cosA = cos(angle)
   const sinA = sin(angle)
 
+  let position = worldInputs.position
+  position.x *= 1 + 0.5 * fract(noise(instanceID() * PI, 150) * 1000)
+
   const rotated = [
-    dot([cosA, -sinA, 0], worldInputs.position),
-    dot([sinA, cosA, 0], worldInputs.position),
+    dot([cosA, -sinA, 0], position),
+    dot([sinA, cosA, 0], position),
     worldInputs.position.z
   ]
 
@@ -113,7 +128,7 @@ function drawHairs() {
   const fromMouse = worldPositioned.xyz - [mouseX - width/2, mouseY - height/2, 0]
   const distFromMouse = length(fromMouse)
   const fromBase = worldInputs.position.x / 100
-  worldPositioned.xyz += normalize(fromMouse) * 40 * smoothstep(500, 0, distFromMouse) * fromBase
+  worldPositioned.xyz += normalize(fromMouse) * 40 * smoothstep(500, 50, distFromMouse) * smoothstep(0, 20, distFromMouse) * fromBase
 
   worldInputs.position = worldPositioned.xyz
   worldInputs.end()
@@ -130,12 +145,13 @@ function draw() {
   noStroke()
   fill('#d1a67b')
   shader(hairShader)
+  const scrollOff = document.body.scrollTop || document.body.parentElement.scrollTop
   for (const { center, size, rotation } of shapes) {
     const perimeter = (size[0] + size[1]) * 2
     const samples = ceil(perimeter * 2)
     hairShader.setUniform('center', [
       center[0] - width/2,
-      center[1] - document.body.parentElement.scrollTop - height/2
+      center[1] - scrollOff - height/2
     ])
     hairShader.setUniform('size', size)
     hairShader.setUniform('rotation', rotation)
