@@ -1,5 +1,6 @@
 let hairShader
 let hairs
+let shapes
 
 async function setup() {
   createCanvas(windowWidth, windowHeight, WEBGL)
@@ -16,7 +17,6 @@ async function setup() {
       )
       verts.push(pos)
     }
-    console.log(verts)
     const tangents = verts.slice(1).map((v, i) => v.copy().sub(verts[i]))
     const normals = tangents.map((v) => v.copy().rotate(PI/2).normalize())
     normals.push(normals.at(-1))
@@ -32,6 +32,42 @@ async function setup() {
     }
     endShape(CLOSE)
   })
+
+  const elts = [...document.querySelectorAll('*:not(html, body, svg)')]
+    .filter(el => {
+      if (el.tagName === 'IFRAME') return true
+      const style = window.getComputedStyle(el)
+      return style.display !== 'inline' && style.background !== 'none' && style.background !== 'rgb(255, 255, 255)'
+    })
+
+  shapes = elts.map((el) => {
+    const rect = el.getBoundingClientRect()
+    const style = window.getComputedStyle(el)
+    const tr = style.transform
+    let scale = 1
+    let angle = 0
+    if (tr !== 'none') {
+      const values = tr.split('(')[1].split(')')[0].split(',')
+      const a = values[0]
+      const b = values[1]
+      const c = values[2]
+      const d = values[3]
+
+      scale = Math.sqrt(a*a + b*b)
+
+      // arc sin, convert from radians to degrees, round
+      // const sin = b/scale
+      // next line works for 30deg but not 130deg (returns 50)
+      // const angle = Math.round(Math.asin(sin) * (180/Math.PI))
+      angle = Math.atan2(b, a)
+    }
+    return {
+      center: [(rect.left + rect.right)/2, (rect.top + rect.bottom)/2],
+      size: [rect.width * scale, rect.height * scale],
+      rotation: angle,
+    }
+  })
+  console.log(elts)
 }
 
 function drawHairs() {
@@ -90,14 +126,6 @@ function drawHairs() {
 function draw() {
   clear()
 
-  const shapes = [
-    {
-      center: [0, 0],
-      size: [200, 100],
-      rotation: PI * 0.15,
-    }
-  ]
-
   push()
   noStroke()
   fill('#d1a67b')
@@ -105,11 +133,18 @@ function draw() {
   for (const { center, size, rotation } of shapes) {
     const perimeter = (size[0] + size[1]) * 2
     const samples = ceil(perimeter * 2)
-    hairShader.setUniform('center', center)
+    hairShader.setUniform('center', [
+      center[0] - width/2,
+      center[1] - document.body.parentElement.scrollTop - height/2
+    ])
     hairShader.setUniform('size', size)
     hairShader.setUniform('rotation', rotation)
     
     model(hairs, samples)
   }
   pop()
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight)
 }
